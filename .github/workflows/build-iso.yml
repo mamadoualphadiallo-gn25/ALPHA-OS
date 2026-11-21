@@ -3,6 +3,8 @@ name: ALPHA OS - build ISO
 on:
   push:
     branches: [main]
+    paths:
+      - "ALPHA-OS-phase4-source.zip"
     tags: ["v*"]
   workflow_dispatch:
 
