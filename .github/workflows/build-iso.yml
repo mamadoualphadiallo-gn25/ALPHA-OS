@@ -1,0 +1,63 @@
+name: ALPHA OS - build ISO
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-iso:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check source archive
+        run: test -s ALPHA-OS-phase4-source.zip
+
+      - name: Extract sources
+        run: |
+          mkdir -p alphaos-src
+          unzip -q ALPHA-OS-phase4-source.zip -d alphaos-src
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang lld make gcc python3 binutils git xorriso
+
+      - name: Build and run tests
+        working-directory: alphaos-src
+        run: |
+          make clean
+          make test
+
+      - name: Build bootable ISO
+        working-directory: alphaos-src
+        run: make iso
+
+      - name: Verify ISO
+        working-directory: alphaos-src
+        run: |
+          test -s build/alpha-os.iso
+          file build/alpha-os.iso
+          sha256sum build/alpha-os.iso
+
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ALPHA-OS-ISO
+          path: alphaos-src/build/alpha-os.iso
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ALPHA OS ${{ github.ref_name }}
+          generate_release_notes: true
+          files: alphaos-src/build/alpha-os.iso
